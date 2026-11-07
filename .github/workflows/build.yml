@@ -55,3 +55,4 @@ steps:
     with:
       name: POCKET-OPTION-AI-APK
       path: android-project/app/build/outputs/apk/debug/app-debug.apk
+      if-no-files-found: error
