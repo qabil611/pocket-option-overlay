@@ -20,27 +20,37 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
 
-      - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Extract Android project
+        run: |
+          mkdir -p android-project
+          unzip -q android-project.zip -d android-project
+          ls -la android-project
 
-      - name: Extract project
-        run: unzip -q android-project.zip -d android-project
-
-      - name: Build APK
+      - name: Build Debug APK
         working-directory: android-project
         run: gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: pocket-overlay-debug-apk
-          path: android-project/app/build/outputs/apk/debug/app-debug.apk
+          name: pocket-option-ai-debug-apk
+          path: android-project/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
