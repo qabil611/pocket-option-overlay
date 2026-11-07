@@ -25,30 +25,67 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Locate Android SDK Manager
+      - name: Install Android SDK
         run: |
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)
+
           if [ -z "$SDKMANAGER" ]; then
             echo "SDK Manager not found"
             exit 1
           fi
-          echo "SDKMANAGER=$SDKMANAGER" >> $GITHUB_ENV
 
-      - name: Install Android SDK packages
-        run: |
           yes | "$SDKMANAGER" --licenses || true
-          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+
+          "$SDKMANAGER" --install \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Extract Android project
         run: |
           mkdir -p android-project
           unzip -q android-project.zip -d android-project
-          ls -la android-project
 
-      - name: Build APK
+          echo "Project files:"
+          find android-project -maxdepth 3 -type f
+
+      - name: Fix Java and Kotlin JVM target
+        working-directory: android-project
+        run: |
+          test -f app/build.gradle.kts
+
+          cat >> app/build.gradle.kts <<'EOF'
+
+          // AUTOMATIC JVM TARGET COMPATIBILITY FIX
+
+          tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
+              sourceCompatibility = "17"
+              targetCompatibility = "17"
+          }
+
+          tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+          EOF
+
+          echo "Java and Kotlin targets configured to 17"
+
+      - name: Build Android APK
         working-directory: android-project
         run: |
           gradle assembleDebug --no-daemon
+
+      - name: Verify APK
+        run: |
+          APK="android-project/app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$APK" ]; then
+            echo "APK file was not generated!"
+            exit 1
+          fi
+
+          ls -lh "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
